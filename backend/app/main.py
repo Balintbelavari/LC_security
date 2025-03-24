@@ -1,15 +1,69 @@
-from fastapi import FastAPI
-from app.routes import items
-import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from motor.motor_asyncio import AsyncIOMotorClient
+import joblib
+from datetime import datetime
+from dotenv import load_dotenv
+import os
 
-app = FastAPI(title="FastAPI MongoDB Example")
+# Get the directory where main.py is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Register API routes
-app.include_router(items.router)
+# Load environment variables from .env
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+MONGO_URI = os.getenv("MONGO_URI")  # e.g., "mongodb+srv://..."
+
+# FastAPI app
+app = FastAPI()
+
+# Add CORS middleware for React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React default port
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# MongoDB connection
+client = AsyncIOMotorClient(MONGO_URI)
+db = client["your_database"]
+
+# Load model and vectorizer
+model = joblib.load(os.path.join(BASE_DIR, 'model.pkl'))
+vectorizer = joblib.load(os.path.join(BASE_DIR, 'vectorizer.pkl'))
+
+class Message(BaseModel):
+    message: str
 
 @app.get("/")
-async def root():
-    return {"message": "Welcome to FastAPI with MongoDB"}
+async def home():
+    return {"message": "Welcome to the Scam/Ham Prediction API"}
+
+@app.post("/predict")
+async def predict(message: Message):
+    try:
+        # Transform and predict
+        message_bow = vectorizer.transform([message.message])
+        prediction = model.predict(message_bow)[0]
+        
+        # Store in MongoDB
+        result = {
+            "message": message.message,
+            "prediction": prediction,
+            "timestamp": datetime.now().isoformat()
+        }
+        await db.predictions.insert_one(result)
+        
+        return {"prediction": prediction}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("shutdown")
+async def shutdown():
+    client.close()
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8001, reload=True)
