@@ -33,3 +33,4 @@ backend/app/__pycache__
 
 # Ignore github
 .github/
+backend/frontend
