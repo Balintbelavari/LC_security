@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from motor.motor_asyncio import AsyncIOMotorClient
-import joblib
+from fastapi import FastAPI, HTTPException # type: ignore
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from pydantic import BaseModel # type: ignore
+from motor.motor_asyncio import AsyncIOMotorClient # type: ignore
+import joblib # type: ignore
 from datetime import datetime
-from dotenv import load_dotenv
+from dotenv import load_dotenv # type: ignore
 import os
 
 # Get the directory where main.py is located
@@ -65,5 +65,5 @@ async def shutdown():
     client.close()
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn # type: ignore
     uvicorn.run(app, host="127.0.0.1", port=8001, reload=True)
